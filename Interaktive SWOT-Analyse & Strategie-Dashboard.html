@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interaktives SWOT-Analyse & Strategie-Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bibliotheken für Export-Funktionen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --color-primary: #003366; --color-background: #F8F9FA; --color-accent-success: #28A745; --color-accent-info: #17A2B8; --color-accent-warning: #FFC107; --color-text-dark: #343A40; --color-text-light: #FFFFFF; --color-border: #dee2e6;
+            --color-danger: #dc3545;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: var(--color-background); color: var(--color-text-dark); margin: 0; padding: 2rem; font-size: 16px; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; background-color: var(--color-text-light); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        header { text-align: center; margin-bottom: 2.5rem; border-bottom: 1px solid var(--color-border); padding-bottom: 1.5rem; }
+        h1 { color: var(--color-primary); font-weight: 700; font-size: 2.25rem; }
+        h2 { color: var(--color-primary); font-weight: 600; font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--color-accent-info); display: inline-block; }
+        h3 { font-weight: 600; margin-bottom: 1rem; color: var(--color-text-dark); }
+        h4 { font-weight: 600; margin-bottom: 0.25rem; color: var(--color-primary); }
+        .input-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-bottom: 3rem; }
+        .input-group { display: flex; flex-direction: column; }
+        .input-wrapper { display: flex; gap: 0.5rem; }
+        .input-container { flex-grow: 1; }
+        .input-container label, .weight-container label { font-size: 0.8rem; color: #6c757d; margin-bottom: 0.25rem; display: block; }
+        .weight-container { flex-shrink: 0; }
+        .input-field { width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: 4px; font-size: 1rem; transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box; }
+        .weight-input { width: 90px; text-align: center; }
+        .input-field:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+        .input-field.invalid { border-color: var(--color-danger); }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 4px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s, transform 0.1s; }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary { background-color: var(--color-primary); color: var(--color-text-light); width: 100%; margin-top: 0.75rem; }
+        .btn-primary:hover { background-color: #002244; }
+        .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; gap: 1.5rem; }
+        .matrix-quadrant { background-color: #fff; padding: 1.5rem; border-radius: 6px; border: 1px solid var(--color-border); display: flex; flex-direction: column; }
+        .matrix-quadrant ul { list-style: none; padding: 0; margin: 0; flex-grow: 1; min-height: 100px; position: relative; }
+        .swot-item { background-color: var(--color-background); padding: 0.5rem 0.75rem; border-radius: 4px; margin-bottom: 0.5rem; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center; word-break: break-word; cursor: grab; transition: opacity 0.2s, transform 0.2s; }
+        .swot-item.dragging { opacity: 0.5; transform: scale(0.95); cursor: grabbing; }
+        .swot-item-content { display: flex; align-items: center; flex-grow: 1; }
+        .weight-badge { font-size: 0.8rem; font-weight: 700; color: white; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; justify-content: center; align-items: center; margin-right: 0.75rem; flex-shrink: 0; }
+        .weight-1 { background-color: #6c757d; } .weight-2 { background-color: #5a6268; } .weight-3 { background-color: var(--color-accent-info); } .weight-4 { background-color: var(--color-accent-warning); } .weight-5 { background-color: var(--color-danger); }
+        .swot-item-content input[type="checkbox"] { margin-right: 0.75rem; transform: scale(1.2); cursor: pointer; }
+        .delete-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 1.2rem; font-weight: bold; padding: 0 0 0 1rem; transition: color 0.2s; }
+        .delete-btn:hover { color: var(--color-primary); }
+        .quadrant-strengths h3, .quadrant-opportunities h3 { border-left: 4px solid var(--color-accent-success); padding-left: 0.75rem; }
+        .quadrant-weaknesses h3, .quadrant-threats h3 { border-left: 4px solid var(--color-accent-warning); padding-left: 0.75rem; }
+        #synthese { margin-top: 3rem; }
+        
+        .strategy-creation-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; margin-bottom: 3rem; }
+        @media (min-width: 768px) { .strategy-creation-grid { grid-template-columns: 1fr 1fr; } }
+
+        .strategy-group { padding: 1.5rem; border: 2px dashed transparent; border-radius: 6px; background-color: #fff; transition: border-color 0.2s, background-color 0.2s; }
+        .strategy-group.drag-over { border-color: var(--color-accent-info); background-color: #eefbff; }
+        .strategy-explanation { font-size: 0.85rem; color: #6c757d; margin-bottom: 1rem; font-style: italic; }
+        .btn-info { background-color: var(--color-accent-info); color: var(--color-text-light); width: 100%; margin-top: 1rem; }
+        .btn-info:hover { background-color: #138496; }
+        .strategy-item { background-color: var(--color-background); padding: 0.75rem; border-radius: 4px; margin-bottom: 0.5rem; }
+        .strategy-item p { margin: 0 0 0.5rem 0; font-weight: 500; }
+        .strategy-item .source-factors { font-size: 0.8rem; color: #6c757d; font-style: italic; }
+        .selected-factors { margin-top: 1rem; font-size: 0.9rem; min-height: 20px; }
+        .selected-factors span { background-color: #e9ecef; padding: 0.2rem 0.5rem; border-radius: 4px; margin-right: 0.3rem; margin-bottom: 0.3rem; display: inline-block; }
+        .controls { text-align: center; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--color-border); }
+        .btn-success { background-color: var(--color-accent-success); color: var(--color-text-light); }
+        .btn-success:hover { background-color: #218838; }
+        .btn-warning { background-color: var(--color-accent-warning); color: var(--color-text-dark); }
+        .btn-warning:hover { background-color: #e0a800; }
+        .controls .btn { margin: 0.5rem; }
+        .exporting .controls, .exporting .delete-btn, .exporting .explanation-toggle { display: none; }
+        .explanation-section { background-color: #f8f9fa; border: 1px solid var(--color-border); padding: 0.5rem 1.5rem; margin-bottom: 1.5rem; border-radius: 4px; }
+        .explanation-section summary { cursor: pointer; font-weight: 600; color: var(--color-primary); padding: 0.5rem 0; }
+        .explanation-section summary:hover { color: #002244; }
+        .explanation-section .content { padding-top: 1rem; padding-bottom: 0.5rem; }
+        .explanation-section ul { padding-left: 20px; }
+        .instruction-box { background-color: #eefbff; border-left: 4px solid var(--color-accent-info); padding: 1rem 1.5rem; margin-bottom: 2.5rem; border-radius: 4px; }
+        #save-status { font-size: 0.85rem; color: #6c757d; text-align: center; margin-top: 1rem; height: 1em; transition: opacity 0.5s; }
+        .empty-state { color: #adb5bd; text-align: center; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; }
+        .has-items .empty-state { display: none; }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 2rem; border-radius: 8px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-width: 400px; }
+        .modal-content p { margin-top: 0; }
+        .modal-buttons { margin-top: 1.5rem; }
+        .modal-buttons .btn { margin: 0 0.5rem; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-secondary:hover { background-color: #5a6268; }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="export-container">
+        <header>
+            <h1>Interaktives SWOT-Analyse & Strategie-Dashboard</h1>
+            <p>Ein Werkzeug zur systematischen Analyse und strategischen Planung.</p>
+        </header>
+
+        <main>
+            <details class="explanation-section explanation-toggle" open>
+                <summary>Einführung & Methode (hier klicken zum Ausklappen)</summary>
+                <div class="content">
+                    <h4>Was ist eine SWOT-Analyse?</h4>
+                    <p>Die SWOT-Analyse ist ein fundamentales Instrument des strategischen Managements. Sie untersucht systematisch interne und externe Faktoren, um die strategische Ausgangslage eines Unternehmens, Projekts oder Produkts zu bewerten.</p>
+                    <ul>
+                        <li><strong>Strengths (Stärken):</strong> Interne, positive Attribute, die einen Wettbewerbsvorteil verschaffen.</li>
+                        <li><strong>Weaknesses (Schwächen):</strong> Interne, negative Attribute, die einen Wettbewerbsnachteil darstellen.</li>
+                        <li><strong>Opportunities (Chancen):</strong> Externe, positive Faktoren im Umfeld, die genutzt werden könnten.</li>
+                        <li><strong>Threats (Risiken):</strong> Externe, negative Faktoren im Umfeld, die den Erfolg gefährden könnten.</li>
+                    </ul>
+                    <h4>Vom Analysieren zum Handeln: Die TOWS-Matrix</h4>
+                    <p>Der entscheidende Schritt ist die systematische Kombination der Faktoren, um strategische Stoßrichtungen (TOWS-Matrix) abzuleiten:</p>
+                    <ul>
+                        <li><strong>SO (Maxi-Maxi):</strong> Stärken nutzen, um Chancen zu ergreifen.</li>
+                        <li><strong>ST (Maxi-Mini):</strong> Stärken nutzen, um Risiken abzuwehren.</li>
+                        <li><strong>WO (Mini-Maxi):</strong> Schwächen überwinden, indem man Chancen nutzt.</li>
+                        <li><strong>WT (Mini-Mini):</strong> Schwächen minimieren und Risiken vermeiden.</li>
+                    </ul>
+                    <h4>Die Gewichtung der Faktoren</h4>
+                    <p>Die optionale Gewichtung von 1 (niedrig) bis 5 (hoch) hilft, die relative Bedeutung und Dringlichkeit eines Faktors zu visualisieren. Eine hohe Gewichtung (z.B. 5, rot) signalisiert eine hohe Priorität und erfordert besondere Aufmerksamkeit bei der Strategiebildung.</p>
+                </div>
+            </details>
+
+            <section class="instruction-box">
+                <p><strong>Kurzanleitung:</strong> Identifizieren Sie Faktoren, leiten Sie Strategien ab (per <strong>Checkbox</strong> oder <strong>Drag & Drop</strong>) und exportieren Sie das Ergebnis. Ihr Fortschritt wird automatisch gespeichert.</p>
+            </section>
+
+            <section id="eingabe">
+                <h2>1. Faktoren identifizieren</h2>
+                <div class="input-section">
+                    <div class="input-group"><h3>Stärken (Strengths)</h3><div class="input-wrapper"><div class="input-container"><label for="input-strength">Faktor</label><input type="text" id="input-strength" class="input-field" placeholder="Faktor beschreiben..."></div><div class="weight-container"><label for="weight-strength">Gewichtung</label><input type="number" id="weight-strength" class="input-field weight-input" min="1" max="5" placeholder="1-5" title="Gewichtung (1-5)"></div></div><button id="btn-add-strength" class="btn btn-primary">Hinzufügen</button></div>
+                    <div class="input-group"><h3>Schwächen (Weaknesses)</h3><div class="input-wrapper"><div class="input-container"><label for="input-weakness">Faktor</label><input type="text" id="input-weakness" class="input-field" placeholder="Faktor beschreiben..."></div><div class="weight-container"><label for="weight-weakness">Gewichtung</label><input type="number" id="weight-weakness" class="input-field weight-input" min="1" max="5" placeholder="1-5" title="Gewichtung (1-5)"></div></div><button id="btn-add-weakness" class="btn btn-primary">Hinzufügen</button></div>
+                    <div class="input-group"><h3>Chancen (Opportunities)</h3><div class="input-wrapper"><div class="input-container"><label for="input-opportunity">Faktor</label><input type="text" id="input-opportunity" class="input-field" placeholder="Faktor beschreiben..."></div><div class="weight-container"><label for="weight-opportunity">Gewichtung</label><input type="number" id="weight-opportunity" class="input-field weight-input" min="1" max="5" placeholder="1-5" title="Gewichtung (1-5)"></div></div><button id="btn-add-opportunity" class="btn btn-primary">Hinzufügen</button></div>
+                    <div class="input-group"><h3>Risiken (Threats)</h3><div class="input-wrapper"><div class="input-container"><label for="input-threat">Faktor</label><input type="text" id="input-threat" class="input-field" placeholder="Faktor beschreiben..."></div><div class="weight-container"><label for="weight-threat">Gewichtung</label><input type="number" id="weight-threat" class="input-field weight-input" min="1" max="5" placeholder="1-5" title="Gewichtung (1-5)"></div></div><button id="btn-add-threat" class="btn btn-primary">Hinzufügen</button></div>
+                </div>
+            </section>
+
+            <section id="visualisierung">
+                <h2>2. SWOT-Matrix</h2>
+                <div class="matrix-grid">
+                    <div class="matrix-quadrant quadrant-strengths"><h3>Stärken</h3><ul id="list-strengths" data-quadrant="strengths"><div class="empty-state">Fügen Sie hier Ihre Stärken hinzu...</div></ul></div>
+                    <div class="matrix-quadrant quadrant-weaknesses"><h3>Schwächen</h3><ul id="list-weaknesses" data-quadrant="weaknesses"><div class="empty-state">Fügen Sie hier Ihre Schwächen hinzu...</div></ul></div>
+                    <div class="matrix-quadrant quadrant-opportunities"><h3>Chancen</h3><ul id="list-opportunities" data-quadrant="opportunities"><div class="empty-state">Fügen Sie hier Ihre Chancen hinzu...</div></ul></div>
+                    <div class="matrix-quadrant quadrant-threats"><h3>Risiken</h3><ul id="list-threats" data-quadrant="threats"><div class="empty-state">Fügen Sie hier Ihre Risiken hinzu...</div></ul></div>
+                </div>
+            </section>
+            
+            <section id="synthese">
+                <h2>3. Strategien ableiten (TOWS-Matrix)</h2>
+                <div class="strategy-creation-grid">
+                    <div class="strategy-group" data-strategy-type="so" data-sources="strengths,opportunities"><h4>SO (Maxi-Maxi)</h4><p class="strategy-explanation">Stärken nutzen, um Chancen zu ergreifen.</p><div class="selected-factors" id="selected-so" title="Per Drag & Drop hinzugefügte Faktoren"></div><input type="text" id="input-so-strategy" class="input-field" placeholder="Strategie formulieren..."><button id="btn-add-so" class="btn btn-info">SO-Strategie erstellen</button></div>
+                    <div class="strategy-group" data-strategy-type="st" data-sources="strengths,threats"><h4>ST (Maxi-Mini)</h4><p class="strategy-explanation">Stärken nutzen, um Risiken abzuwehren.</p><div class="selected-factors" id="selected-st" title="Per Drag & Drop hinzugefügte Faktoren"></div><input type="text" id="input-st-strategy" class="input-field" placeholder="Strategie formulieren..."><button id="btn-add-st" class="btn btn-info">ST-Strategie erstellen</button></div>
+                    <div class="strategy-group" data-strategy-type="wo" data-sources="weaknesses,opportunities"><h4>WO (Mini-Maxi)</h4><p class="strategy-explanation">Schwächen abbauen, um Chancen zu nutzen.</p><div class="selected-factors" id="selected-wo" title="Per Drag & Drop hinzugefügte Faktoren"></div><input type="text" id="input-wo-strategy" class="input-field" placeholder="Strategie formulieren..."><button id="btn-add-wo" class="btn btn-info">WO-Strategie erstellen</button></div>
+                    <div class="strategy-group" data-strategy-type="wt" data-sources="weaknesses,threats"><h4>WT (Mini-Mini)</h4><p class="strategy-explanation">Schwächen minimieren & Risiken vermeiden.</p><div class="selected-factors" id="selected-wt" title="Per Drag & Drop hinzugefügte Faktoren"></div><input type="text" id="input-wt-strategy" class="input-field" placeholder="Strategie formulieren..."><button id="btn-add-wt" class="btn btn-info">WT-Strategie erstellen</button></div>
+                </div>
+                <div class="matrix-grid">
+                    <div class="matrix-quadrant"><h3>SO-Strategien</h3><ul id="list-so-strategies"><div class="empty-state">Leiten Sie hier SO-Strategien ab...</div></ul></div>
+                    <div class="matrix-quadrant"><h3>ST-Strategien</h3><ul id="list-st-strategies"><div class="empty-state">Leiten Sie hier ST-Strategien ab...</div></ul></div>
+                    <div class="matrix-quadrant"><h3>WO-Strategien</h3><ul id="list-wo-strategies"><div class="empty-state">Leiten Sie hier WO-Strategien ab...</div></ul></div>
+                    <div class="matrix-quadrant"><h3>WT-Strategien</h3><ul id="list-wt-strategies"><div class="empty-state">Leiten Sie hier WT-Strategien ab...</div></ul></div>
+                </div>
+            </section>
+
+            <div class="controls">
+                <button id="btn-export-png" class="btn btn-success">Als PNG exportieren</button>
+                <button id="btn-export-pdf" class="btn btn-success">Als PDF exportieren</button>
+                <button id="btn-reset" class="btn btn-warning">Analyse zurücksetzen</button>
+                <div id="save-status"></div>
+            </div>
+        </main>
+    </div>
+    
+    <div id="reset-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h4>Analyse zurücksetzen?</h4>
+            <p>Möchten Sie die aktuelle Analyse wirklich zurücksetzen? Alle gespeicherten Daten für dieses Tool werden dauerhaft gelöscht.</p>
+            <div class="modal-buttons">
+                <button id="modal-cancel" class="btn btn-secondary">Abbrechen</button>
+                <button id="modal-confirm" class="btn btn-warning">Ja, zurücksetzen</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Konstanten & Konfiguration ---
+        const CONSTANTS = {
+            STORAGE_KEY: 'swotAnalysisData_v4',
+            APP_VERSION: '4.0',
+            QUADRANTS: { STRENGTHS: 'strengths', WEAKNESSES: 'weaknesses', OPPORTUNITIES: 'opportunities', THREATS: 'threats' },
+            STRATEGIES: { SO: 'so', ST: 'st', WO: 'wo', WT: 'wt' },
+            MIME_TYPE_JSON: 'application/json'
+        };
+
+        // --- Referenzieren der DOM-Elemente ---
+        const allLists = document.querySelectorAll('.matrix-quadrant ul');
+        const inputs = { 
+            [CONSTANTS.QUADRANTS.STRENGTHS]: document.getElementById('input-strength'), 
+            [CONSTANTS.QUADRANTS.WEAKNESSES]: document.getElementById('input-weakness'), 
+            [CONSTANTS.QUADRANTS.OPPORTUNITIES]: document.getElementById('input-opportunity'), 
+            [CONSTANTS.QUADRANTS.THREATS]: document.getElementById('input-threat') 
+        };
+        const weights = {
+            [CONSTANTS.QUADRANTS.STRENGTHS]: document.getElementById('weight-strength'), 
+            [CONSTANTS.QUADRANTS.WEAKNESSES]: document.getElementById('weight-weakness'),
+            [CONSTANTS.QUADRANTS.OPPORTUNITIES]: document.getElementById('weight-opportunity'), 
+            [CONSTANTS.QUADRANTS.THREATS]: document.getElementById('weight-threat')
+        };
+        const addButtons = { 
+            [CONSTANTS.QUADRANTS.STRENGTHS]: document.getElementById('btn-add-strength'), 
+            [CONSTANTS.QUADRANTS.WEAKNESSES]: document.getElementById('btn-add-weakness'), 
+            [CONSTANTS.QUADRANTS.OPPORTUNITIES]: document.getElementById('btn-add-opportunity'), 
+            [CONSTANTS.QUADRANTS.THREATS]: document.getElementById('btn-add-threat')
+        };
+        const swotLists = { 
+            [CONSTANTS.QUADRANTS.STRENGTHS]: document.getElementById('list-strengths'), 
+            [CONSTANTS.QUADRANTS.WEAKNESSES]: document.getElementById('list-weaknesses'), 
+            [CONSTANTS.QUADRANTS.OPPORTUNITIES]: document.getElementById('list-opportunities'), 
+            [CONSTANTS.QUADRANTS.THREATS]: document.getElementById('list-threats')
+        };
+        const strategyInputs = { 
+            [CONSTANTS.STRATEGIES.SO]: document.getElementById('input-so-strategy'), 
+            [CONSTANTS.STRATEGIES.ST]: document.getElementById('input-st-strategy'), 
+            [CONSTANTS.STRATEGIES.WO]: document.getElementById('input-wo-strategy'), 
+            [CONSTANTS.STRATEGIES.WT]: document.getElementById('input-wt-strategy')
+        };
+        const strategyButtons = { 
+            [CONSTANTS.STRATEGIES.SO]: document.getElementById('btn-add-so'), 
+            [CONSTANTS.STRATEGIES.ST]: document.getElementById('btn-add-st'), 
+            [CONSTANTS.STRATEGIES.WO]: document.getElementById('btn-add-wo'), 
+            [CONSTANTS.STRATEGIES.WT]: document.getElementById('btn-add-wt')
+        };
+        const strategyLists = { 
+            [CONSTANTS.STRATEGIES.SO]: document.getElementById('list-so-strategies'), 
+            [CONSTANTS.STRATEGIES.ST]: document.getElementById('list-st-strategies'), 
+            [CONSTANTS.STRATEGIES.WO]: document.getElementById('list-wo-strategies'), 
+            [CONSTANTS.STRATEGIES.WT]: document.getElementById('list-wt-strategies')
+        };
+        const resetButton = document.getElementById('btn-reset');
+        const exportPngButton = document.getElementById('btn-export-png');
+        const exportPdfButton = document.getElementById('btn-export-pdf');
+        const exportContainer = document.getElementById('export-container');
+        const strategyGroups = document.querySelectorAll('.strategy-group');
+        const saveStatus = document.getElementById('save-status');
+        const resetModal = document.getElementById('reset-modal');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalConfirm = document.getElementById('modal-confirm');
+
+        let selectedFactorsByDragDrop = { [CONSTANTS.STRATEGIES.SO]: new Map(), [CONSTANTS.STRATEGIES.ST]: new Map(), [CONSTANTS.STRATEGIES.WO]: new Map(), [CONSTANTS.STRATEGIES.WT]: new Map() };
+
+        // --- Hilfsfunktionen ---
+        const updateEmptyState = (listElement) => {
+            const hasItems = listElement.querySelector('.swot-item, .strategy-item');
+            listElement.classList.toggle('has-items', !!hasItems);
+        };
+
+        const showTemporaryStatus = (message, isError = false) => {
+            saveStatus.textContent = message;
+            saveStatus.style.color = isError ? 'var(--color-danger)' : '#6c757d';
+            saveStatus.style.opacity = '1';
+            setTimeout(() => { saveStatus.style.opacity = '0'; }, 3000);
+        };
+
+        // --- Automatisches Speichern & Laden ---
+        function saveState() {
+            const state = { swot: {}, strategies: {} };
+            for (const key in swotLists) { state.swot[key] = Array.from(swotLists[key].querySelectorAll('.swot-item')).map(li => ({ id: li.dataset.id, text: li.dataset.text, weight: li.dataset.weight, quadrant: li.dataset.quadrant })); }
+            for (const key in strategyLists) { state.strategies[key] = Array.from(strategyLists[key].querySelectorAll('.strategy-item')).map(li => ({ text: li.dataset.text, sources: li.dataset.sources }));}
+            
+            const versionedData = { version: CONSTANTS.APP_VERSION, data: state };
+            localStorage.setItem(CONSTANTS.STORAGE_KEY, JSON.stringify(versionedData));
+            saveStatus.textContent = `Zuletzt gespeichert: ${new Date().toLocaleTimeString()}`;
+            saveStatus.style.color = '#6c757d';
+        }
+
+        function loadState() {
+            const savedData = localStorage.getItem(CONSTANTS.STORAGE_KEY);
+            if (!savedData) { allLists.forEach(updateEmptyState); return; }
+            
+            const parsedData = JSON.parse(savedData);
+            if (!parsedData || parsedData.version !== CONSTANTS.APP_VERSION) {
+                console.warn(`Veraltete oder inkompatible Speicherdaten gefunden. Version ${parsedData?.version} statt ${CONSTANTS.APP_VERSION}. Daten werden nicht geladen.`);
+                allLists.forEach(updateEmptyState);
+                return;
+            }
+
+            const state = parsedData.data;
+            for (const key in state.swot) { if (swotLists[key]) { state.swot[key].forEach(item => addSwotItem(swotLists[key], item.text, item.weight, true)); } }
+            for (const key in state.strategies) { if (strategyLists[key]) { state.strategies[key].forEach(itemData => createStrategy(strategyLists[key], itemData.text, itemData.sources, true)); } }
+            
+            allLists.forEach(updateEmptyState);
+            showTemporaryStatus("Letzte Analyse erfolgreich geladen.");
+        }
+
+        // --- Funktion zum Hinzufügen von SWOT-Faktoren ---
+        const addSwotItem = (listElement, text, weight, isLoading = false) => {
+            const trimmedText = text.trim();
+            if (trimmedText === '') return;
+
+            const isDuplicate = Array.from(listElement.querySelectorAll('.swot-item')).some(item => item.dataset.text.trim().toLowerCase() === trimmedText.toLowerCase());
+            if (isDuplicate) {
+                showTemporaryStatus("Dieser Faktor existiert bereits.", true);
+                return;
+            }
+
+            const li = document.createElement('li'); li.className = 'swot-item'; li.draggable = true; const itemId = 'item-' + Date.now() + Math.random(); li.dataset.id = itemId; li.dataset.text = text; li.dataset.weight = weight; li.dataset.quadrant = listElement.dataset.quadrant;
+            const contentDiv = document.createElement('div'); contentDiv.className = 'swot-item-content';
+            const weightBadge = document.createElement('span'); weightBadge.className = `weight-badge weight-${weight}`; weightBadge.textContent = weight; weightBadge.title = `Gewichtung: ${weight}`;
+            const checkbox = document.createElement('input'); checkbox.type = 'checkbox';
+            const textSpan = document.createElement('span'); textSpan.textContent = text;
+            contentDiv.appendChild(weightBadge); contentDiv.appendChild(checkbox); contentDiv.appendChild(textSpan);
+            const deleteBtn = document.createElement('button'); deleteBtn.textContent = '×'; deleteBtn.className = 'delete-btn'; deleteBtn.title = 'Eintrag löschen'; deleteBtn.setAttribute('aria-label', 'Eintrag löschen');
+            deleteBtn.addEventListener('click', () => { Object.values(selectedFactorsByDragDrop).forEach(map => map.delete(itemId)); updateAllDragDropUIs(); li.remove(); updateEmptyState(listElement); if (!isLoading) saveState(); });
+            
+            li.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData(CONSTANTS.MIME_TYPE_JSON, JSON.stringify({id: li.dataset.id, text: li.dataset.text, quadrant: li.dataset.quadrant}));
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => e.target.classList.add('dragging'), 0);
+            });
+            li.addEventListener('dragend', (e) => e.target.classList.remove('dragging'));
+
+            li.appendChild(contentDiv); li.appendChild(deleteBtn); listElement.appendChild(li);
+            updateEmptyState(listElement);
+            if (!isLoading) saveState();
+        };
+
+        // --- Drag & Drop Logik ---
+        strategyGroups.forEach(group => {
+            group.addEventListener('dragover', e => { e.preventDefault(); group.classList.add('drag-over'); });
+            group.addEventListener('dragleave', () => group.classList.remove('drag-over'));
+            group.addEventListener('drop', e => {
+                e.preventDefault();
+                group.classList.remove('drag-over');
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData(CONSTANTS.MIME_TYPE_JSON));
+                    const validSources = group.dataset.sources.split(',');
+                    if (data && validSources.includes(data.quadrant)) {
+                        const type = group.dataset.strategyType;
+                        selectedFactorsByDragDrop[type].set(data.id, data.text);
+                        updateDragDropUI(type);
+                    }
+                } catch (error) { console.error("Could not parse dropped data:", error); }
+            });
+        });
+        
+        const updateDragDropUI = (type) => {
+            const container = document.getElementById(`selected-${type}`); container.innerHTML = 'Via D&D: '; if (selectedFactorsByDragDrop[type].size === 0) container.innerHTML = '';
+            selectedFactorsByDragDrop[type].forEach((text, id) => { const tag = document.createElement('span'); tag.textContent = text; tag.title = 'Klicken zum Entfernen'; tag.style.cursor = 'pointer'; tag.addEventListener('click', () => { selectedFactorsByDragDrop[type].delete(id); updateDragDropUI(type); }); container.appendChild(tag); });
+        };
+        const updateAllDragDropUIs = () => Object.keys(selectedFactorsByDragDrop).forEach(updateDragDropUI);
+
+        // --- Event-Listener für SWOT-Eingabe ---
+        const setupAddAction = (button, input, weightInput, list) => {
+            const action = () => { 
+                if (input.value.trim() === '') return;
+                const clampedWeight = Math.max(1, Math.min(5, parseInt(weightInput.value, 10) || 1));
+                addSwotItem(list, input.value, clampedWeight); 
+                input.value = ''; weightInput.value = ''; input.focus(); 
+            };
+            button.addEventListener('click', action); input.addEventListener('keypress', (e) => { if(e.key === 'Enter') action(); }); weightInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') action(); });
+        };
+        for (const key in addButtons) { setupAddAction(addButtons[key], inputs[key], weights[key], swotLists[key]); }
+
+        // --- Funktion zum Erstellen von Strategien ---
+        const createStrategy = (strategyList, strategyText, sourceFactors, isLoading = false) => {
+            const trimmedText = strategyText.trim();
+            const sourcesString = Array.isArray(sourceFactors) ? sourceFactors.join(', ') : sourceFactors;
+            if (trimmedText === '' && !isLoading) { showTemporaryStatus('Bitte geben Sie eine Beschreibung für die Strategie ein.', true); return false; }
+            if (sourceFactors.length === 0 && !isLoading) { showTemporaryStatus('Bitte wählen Sie Faktoren per Checkbox oder Drag & Drop aus.', true); return false; }
+            const li = document.createElement('li'); li.className = 'strategy-item'; li.dataset.text = trimmedText; li.dataset.sources = sourcesString;
+            const p = document.createElement('p'); p.textContent = trimmedText; 
+            const small = document.createElement('small'); small.className = 'source-factors'; small.textContent = `Basiert auf: ${sourcesString}`; 
+            li.appendChild(p); li.appendChild(small); strategyList.appendChild(li);
+            updateEmptyState(strategyList);
+            if (!isLoading) saveState();
+            return true;
+        };
+        
+        // --- Event-Listener für Strategie-Erstellung ---
+        const setupStrategyAction = (button, strategyInput, strategyList, sourceList1, sourceList2, type) => {
+            button.addEventListener('click', () => {
+                const checkedFromList1 = Array.from(sourceList1.querySelectorAll('.swot-item input[type="checkbox"]:checked')).map(cb => cb.closest('.swot-item').dataset.text);
+                const checkedFromList2 = Array.from(sourceList2.querySelectorAll('.swot-item input[type="checkbox"]:checked')).map(cb => cb.closest('.swot-item').dataset.text);
+                const droppedFactors = Array.from(selectedFactorsByDragDrop[type].values());
+                const allFactors = [...new Set([...checkedFromList1, ...checkedFromList2, ...droppedFactors])];
+                if (createStrategy(strategyList, strategyInput.value, allFactors)) { strategyInput.value = ''; selectedFactorsByDragDrop[type].clear(); updateDragDropUI(type); [...sourceList1.querySelectorAll('input:checked'), ...sourceList2.querySelectorAll('input:checked')].forEach(cb => cb.checked = false); }
+            });
+        };
+        setupStrategyAction(strategyButtons.so, strategyInputs.so, strategyLists.so, swotLists.strengths, swotLists.opportunities, 'so');
+        setupStrategyAction(strategyButtons.st, strategyInputs.st, strategyLists.st, swotLists.strengths, swotLists.threats, 'st');
+        setupStrategyAction(strategyButtons.wo, strategyInputs.wo, strategyLists.wo, swotLists.weaknesses, swotLists.opportunities, 'wo');
+        setupStrategyAction(strategyButtons.wt, strategyInputs.wt, strategyLists.wt, swotLists.weaknesses, swotLists.threats, 'wt');
+        
+        // --- Modal-Logik für Reset-Button ---
+        resetButton.addEventListener('click', () => { resetModal.style.display = 'flex'; });
+        modalCancel.addEventListener('click', () => { resetModal.style.display = 'none'; });
+        modalConfirm.addEventListener('click', () => {
+            localStorage.removeItem(CONSTANTS.STORAGE_KEY);
+            allLists.forEach(list => { 
+                list.innerHTML = '';
+                const placeholder = document.createElement('div');
+                placeholder.className = 'empty-state';
+                const listId = list.id;
+                if (listId.startsWith('list-s') || listId.startsWith('list-w') || listId.startsWith('list-o') || listId.startsWith('list-t')) {
+                     placeholder.textContent = list.parentElement.querySelector('h3').textContent.replace(/\s*\(.*\)\s*/, '');
+                     placeholder.textContent = `Fügen Sie hier Ihre ${placeholder.textContent} hinzu...`;
+                } else {
+                     placeholder.textContent = `Leiten Sie hier ${list.parentElement.querySelector('h3').textContent.split('-')[0]}-Strategien ab...`;
+                }
+                list.appendChild(placeholder);
+                updateEmptyState(list);
+            });
+            document.querySelectorAll('.input-field').forEach(input => input.value = '');
+            selectedFactorsByDragDrop = { so: new Map(), st: new Map(), wo: new Map(), wt: new Map() };
+            updateAllDragDropUIs();
+            inputs.strengths.focus();
+            showTemporaryStatus("Analyse zurückgesetzt und Speicher gelöscht.");
+            resetModal.style.display = 'none';
+        });
+
+        // --- Export-Funktionen ---
+        function performExport(exportFunction) {
+            const detailsElement = document.querySelector('.explanation-section');
+            const wasOpen = detailsElement.open;
+            if (!wasOpen) detailsElement.open = true;
+            document.body.classList.add('exporting');
+            
+            return exportFunction().finally(() => {
+                if (!wasOpen) detailsElement.open = false;
+                document.body.classList.remove('exporting');
+            });
+        }
+
+        exportPngButton.addEventListener('click', () => {
+            performExport(() => 
+                html2canvas(exportContainer, { scale: 2, logging: false, useCORS: true })
+                .then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = 'SWOT-Analyse.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                }).catch(err => {
+                    console.error("Fehler beim PNG-Export:", err);
+                    showTemporaryStatus("Fehler beim PNG-Export.", true);
+                })
+            );
+        });
+
+        exportPdfButton.addEventListener('click', () => {
+            performExport(() => new Promise((resolve, reject) => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(18);
+                    doc.text('SWOT-Analyse & Strategie-Dashboard', 14, 22);
+                    doc.setFontSize(11);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(`Analyse exportiert am: ${new Date().toLocaleDateString()}`, 14, 30);
+
+                    const swotData = [
+                        { title: 'Stärken', data: swotLists.strengths, color: [40, 167, 69] },
+                        { title: 'Schwächen', data: swotLists.weaknesses, color: [255, 193, 7] },
+                        { title: 'Chancen', data: swotLists.opportunities, color: [40, 167, 69] },
+                        { title: 'Risiken', data: swotLists.threats, color: [255, 193, 7] }
+                    ];
+
+                    let startY = 45;
+                    swotData.forEach(section => {
+                        const body = Array.from(section.data.querySelectorAll('.swot-item')).map(li => [li.dataset.weight, li.dataset.text]);
+                        if (body.length > 0) {
+                            doc.autoTable({
+                                startY: startY,
+                                head: [['Gew.', section.title]],
+                                body: body,
+                                headStyles: { fillColor: section.color, textColor: 255 },
+                                columnStyles: { 0: { cellWidth: 15 } },
+                                tableWidth: 'auto'
+                            });
+                            startY = doc.autoTable.previous.finalY + 10;
+                        }
+                    });
+
+                    const strategyData = [
+                        { title: 'SO-Strategien', data: strategyLists.so },
+                        { title: 'ST-Strategien', data: strategyLists.st },
+                        { title: 'WO-Strategien', data: strategyLists.wo },
+                        { title: 'WT-Strategien', data: strategyLists.wt }
+                    ];
+                    
+                    if (doc.autoTable.previous && doc.autoTable.previous.finalY > 240 || startY > 240) {
+                        doc.addPage();
+                        startY = 22;
+                    }
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(16);
+                    doc.text('Abgeleitete Strategien (TOWS-Matrix)', 14, startY);
+                    startY += 10;
+
+                    strategyData.forEach(section => {
+                        const body = Array.from(section.data.querySelectorAll('.strategy-item')).map(li => [{content: li.dataset.text, styles: {fontStyle: 'bold'}}, {content: `Basiert auf: ${li.dataset.sources}`, styles: {fontStyle: 'italic'}}]);
+                        if (body.length > 0) {
+                            doc.autoTable({
+                                startY: startY,
+                                head: [[section.title]],
+                                body: body,
+                                theme: 'grid',
+                                headStyles: { fillColor: [0, 51, 102], textColor: 255 },
+                            });
+                            startY = doc.autoTable.previous.finalY + 10;
+                        }
+                    });
+
+                    doc.save('SWOT-Analyse.pdf');
+                    resolve();
+                } catch(err) {
+                    console.error("Fehler beim PDF-Export:", err);
+                    showTemporaryStatus("Fehler beim PDF-Export.", true);
+                    reject(err);
+                }
+            }));
+        });
+
+        // Initiales Laden des Zustands
+        loadState();
+    });
+    </script>
+</body>
+</html>
